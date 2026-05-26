@@ -12,10 +12,14 @@ type GeocodingHandler struct {
 	geocodingService *services.GeocodingService
 }
 
+// NewGeocodingHandler creates a GeocodingHandler backed by the given GeocodingService.
+// Deprecated: use LocationHandler instead, which handles both POST and GET reverse geocoding.
 func NewGeocodingHandler(geocodingService *services.GeocodingService) *GeocodingHandler {
 	return &GeocodingHandler{geocodingService: geocodingService}
 }
 
+// ReverseGeocode handles GET /geocode/reverse?lat=&lng=.
+// Deprecated: use LocationHandler.ReverseGeocode, which is registered in the router.
 func (h *GeocodingHandler) ReverseGeocode(c *gin.Context) {
 	latStr := c.Query("lat")
 	lngStr := c.Query("lng")

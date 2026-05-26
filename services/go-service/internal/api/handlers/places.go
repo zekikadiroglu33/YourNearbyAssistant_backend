@@ -14,6 +14,7 @@ type PlacesHandler struct {
 	db            *sql.DB
 }
 
+// NewPlacesHandler creates a PlacesHandler with the given Places service and DB.
 func NewPlacesHandler(placesService *services.PlacesService, db *sql.DB) *PlacesHandler {
 	return &PlacesHandler{
 		placesService: placesService,
@@ -21,6 +22,9 @@ func NewPlacesHandler(placesService *services.PlacesService, db *sql.DB) *Places
 	}
 }
 
+// NearbySearch handles POST /api/v1/places/nearby.
+// Accepts latitude, longitude, radius, type, and keyword; returns a list of nearby places
+// sorted by distance using the Google Places API (New).
 func (h *PlacesHandler) NearbySearch(c *gin.Context) {
 	var req models.NearbySearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

@@ -12,10 +12,13 @@ type UsersHandler struct {
 	db *sql.DB
 }
 
+// NewUsersHandler creates a UsersHandler backed by the given database connection.
 func NewUsersHandler(db *sql.DB) *UsersHandler {
 	return &UsersHandler{db: db}
 }
 
+// CreateUser handles POST /api/v1/users.
+// Inserts a new user by email; if the email already exists, returns the existing record.
 func (h *UsersHandler) CreateUser(c *gin.Context) {
 	var req struct {
 		Email string `json:"email" binding:"required,email"`
@@ -40,6 +43,8 @@ func (h *UsersHandler) CreateUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, user)
 }
 
+// GetUser handles GET /api/v1/users/:id.
+// Returns the user record for the given UUID; responds 404 if not found.
 func (h *UsersHandler) GetUser(c *gin.Context) {
 	id := c.Param("id")
 
@@ -59,6 +64,8 @@ func (h *UsersHandler) GetUser(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
+// SavePlace handles POST /api/v1/users/:id/saved-places.
+// Saves a place to the user's favourites list.
 func (h *UsersHandler) SavePlace(c *gin.Context) {
 	userID := c.Param("id")
 
@@ -84,6 +91,8 @@ func (h *UsersHandler) SavePlace(c *gin.Context) {
 	c.JSON(http.StatusCreated, saved)
 }
 
+// GetSavedPlaces handles GET /api/v1/users/:id/saved-places.
+// Returns all places the user has saved, ordered by most recently saved first.
 func (h *UsersHandler) GetSavedPlaces(c *gin.Context) {
 	userID := c.Param("id")
 

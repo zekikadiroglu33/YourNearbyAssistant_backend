@@ -13,11 +13,14 @@ type LocationHandler struct {
 	geocodingService *services.GeocodingService
 }
 
+// NewLocationHandler creates a LocationHandler backed by the given GeocodingService.
 func NewLocationHandler(geocodingService *services.GeocodingService) *LocationHandler {
 	return &LocationHandler{geocodingService: geocodingService}
 }
 
-// CurrentLocation resolves lat/lng sent by the client into full location details.
+// CurrentLocation handles POST /api/v1/location/current.
+// Accepts a JSON body with latitude and longitude, and returns full location details
+// (formatted address, neighborhood, district, city, country) via reverse geocoding.
 func (h *LocationHandler) CurrentLocation(c *gin.Context) {
 	var req models.LocationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -34,7 +37,8 @@ func (h *LocationHandler) CurrentLocation(c *gin.Context) {
 	c.JSON(http.StatusOK, info)
 }
 
-// ReverseGeocode handles GET /geocode/reverse?lat=&lng= (legacy query-param style).
+// ReverseGeocode handles GET /api/v1/geocode/reverse?lat=&lng=.
+// Query-param style reverse geocode; returns the same LocationInfo as CurrentLocation.
 func (h *LocationHandler) ReverseGeocode(c *gin.Context) {
 	lat, err := strconv.ParseFloat(c.Query("lat"), 64)
 	if err != nil {

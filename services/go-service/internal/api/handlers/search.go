@@ -13,6 +13,7 @@ type SearchHandler struct {
 	placesService *services.PlacesService
 }
 
+// NewSearchHandler creates a SearchHandler wired to the AI client and Places service.
 func NewSearchHandler(aiClient *services.AIClient, placesService *services.PlacesService) *SearchHandler {
 	return &SearchHandler{
 		aiClient:      aiClient,
@@ -20,6 +21,11 @@ func NewSearchHandler(aiClient *services.AIClient, placesService *services.Place
 	}
 }
 
+// Search handles POST /api/v1/search.
+// Accepts a natural-language query with user coordinates and optional conversation history,
+// extracts intent (place type, keyword, radius) via the Python AI service,
+// then searches nearby places through the Google Places API (New).
+// Conversation history is trimmed server-side to the last 6 messages before being forwarded.
 func (h *SearchHandler) Search(c *gin.Context) {
 	var req models.SearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

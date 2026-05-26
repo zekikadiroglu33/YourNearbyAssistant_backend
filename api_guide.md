@@ -1,5 +1,7 @@
 # API Guide — YourNearbyAssistant Backend
 
+**GitHub Repository:** https://github.com/zekikadiroglu33/YourNearbyAssistant_backend
+
 **Base URL (Nginx Gateway):** `http://localhost`
 **Go Service (direct):** `http://localhost:8080`
 **Python AI Service (direct):** `http://localhost:8001`
