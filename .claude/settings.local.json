@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(which go:*)",
+      "Bash(curl:*)",
+      "Bash(docker compose:*)",
+      "Bash(cd /Users/zekikadiroglu/personel-projects/YourNearbyAssistant_backend/services/go-service && go build ./... 2>&1)",
+      "Bash(go build:*)",
+      "Bash(cd:*)"
+    ]
+  }
+}

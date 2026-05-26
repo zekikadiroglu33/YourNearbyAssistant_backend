@@ -1,0 +1,24 @@
+# Environment variables (contain API keys)
+.env
+*.env
+services/go-service/.env
+services/python-service/.env
+
+# Go
+services/go-service/server
+services/go-service/*.exe
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Docker
+postgres_data/
+
+# IDE
+.DS_Store
+.idea/
+.vscode/
