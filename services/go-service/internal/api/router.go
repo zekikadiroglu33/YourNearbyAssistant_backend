@@ -38,7 +38,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB) *gin.Engine {
 		v1.POST("/search", searchHandler.Search)
 
 		// Location
-		v1.POST("/location/current", locationHandler.CurrentLocation)
+		v1.GET("/location/current", locationHandler.CurrentLocation)
 		v1.GET("/geocode/reverse", locationHandler.ReverseGeocode)
 
 		// Users

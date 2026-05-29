@@ -12,7 +12,3 @@ type LocationInfo struct {
 	PostalCode       string  `json:"postal_code"`
 }
 
-type LocationRequest struct {
-	Latitude  float64 `json:"latitude" binding:"required"`
-	Longitude float64 `json:"longitude" binding:"required"`
-}

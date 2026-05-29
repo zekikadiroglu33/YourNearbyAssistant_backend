@@ -102,16 +102,11 @@ curl -s http://localhost/api/v1/users/00000000-0000-0000-0000-000000000000
 
 ## Step 3 — Detect Current Location
 
-The iOS app gets GPS coordinates from CoreLocation and sends them here. The backend resolves them into a human-readable location breakdown (address, district, city, country).
+The iOS app gets GPS coordinates from CoreLocation and passes them as query params. The backend resolves them into a human-readable location breakdown (address, district, city, country).
 
 **Request:**
 ```bash
-curl -s -X POST http://localhost/api/v1/location/current \
-  -H "Content-Type: application/json" \
-  -d '{
-    "latitude": 41.0082,
-    "longitude": 28.9784
-  }'
+curl -s "http://localhost/api/v1/location/current?lat=41.0082&lng=28.9784"
 ```
 **Response:**
 ```json
@@ -544,7 +539,7 @@ curl -s "http://localhost/api/v1/geocode/reverse?lat=41.0082&lng=28.9784"
 | 2 | GET | `/health` | Python :8001 | AI service health check | ✅ |
 | 3 | POST | `/api/v1/users` | Go | Register / get user (upsert) | ✅ |
 | 4 | GET | `/api/v1/users/:id` | Go | Get user by ID | ✅ |
-| 5 | POST | `/api/v1/location/current` | Go | Detect current location from GPS | ✅ |
+| 5 | GET | `/api/v1/location/current?lat=&lng=` | Go | Detect current location from GPS | ✅ |
 | 6 | POST | `/api/v1/search` | Go + Python | Smart search: query → intent → places | ✅ |
 | 7 | POST | `/api/v1/users/:id/saved-places` | Go | Save a place for a user | ✅ |
 | 8 | GET | `/api/v1/users/:id/saved-places` | Go | Get user's saved places | ✅ |

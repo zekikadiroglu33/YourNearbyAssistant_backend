@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yourname/location-assistant/go-service/internal/models"
 	"github.com/yourname/location-assistant/go-service/internal/services"
 )
 
@@ -18,17 +17,22 @@ func NewLocationHandler(geocodingService *services.GeocodingService) *LocationHa
 	return &LocationHandler{geocodingService: geocodingService}
 }
 
-// CurrentLocation handles POST /api/v1/location/current.
-// Accepts a JSON body with latitude and longitude, and returns full location details
-// (formatted address, neighborhood, district, city, country) via reverse geocoding.
+// CurrentLocation handles GET /api/v1/location/current?lat=&lng=.
+// Accepts device GPS coordinates as query params and reverse geocodes them
+// into a human-readable address via Google Geocoding API.
 func (h *LocationHandler) CurrentLocation(c *gin.Context) {
-	var req models.LocationRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	lat, err := strconv.ParseFloat(c.Query("lat"), 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid latitude"})
+		return
+	}
+	lng, err := strconv.ParseFloat(c.Query("lng"), 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid longitude"})
 		return
 	}
 
-	info, err := h.geocodingService.ReverseGeocode(req.Latitude, req.Longitude)
+	info, err := h.geocodingService.ReverseGeocode(lat, lng)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

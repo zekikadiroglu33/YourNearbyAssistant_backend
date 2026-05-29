@@ -81,7 +81,7 @@ func (s *PlacesService) searchNearby(req models.NearbySearchRequest) ([]models.P
 		body["includedTypes"] = []string{*req.Type}
 	}
 
-	return s.doRequest("https://places.googleapis.com/v1/places:searchNearby", body, req)
+	return s.doRequest(googlePlacesSearchNearbyURL, body, req)
 }
 
 // searchText uses Places API (New) — searchText endpoint for keyword queries.
@@ -105,7 +105,7 @@ func (s *PlacesService) searchText(req models.NearbySearchRequest) ([]models.Pla
 		},
 	}
 
-	return s.doRequest("https://places.googleapis.com/v1/places:searchText", body, req)
+	return s.doRequest(googlePlacesSearchTextURL, body, req)
 }
 
 func (s *PlacesService) doRequest(url string, body map[string]any, req models.NearbySearchRequest) ([]models.Place, error) {

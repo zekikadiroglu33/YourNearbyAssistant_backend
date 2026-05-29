@@ -22,12 +22,13 @@ func NewGeocodingService(apiKey string) *GeocodingService {
 	}
 }
 
+
 func (s *GeocodingService) ReverseGeocode(lat, lng float64) (*models.LocationInfo, error) {
 	params := url.Values{}
 	params.Add("latlng", fmt.Sprintf("%f,%f", lat, lng))
 	params.Add("key", s.apiKey)
 
-	fullURL := fmt.Sprintf("https://maps.googleapis.com/maps/api/geocode/json?%s", params.Encode())
+	fullURL := fmt.Sprintf("%s?%s", googleGeocodingURL, params.Encode())
 
 	resp, err := s.client.Get(fullURL)
 	if err != nil {

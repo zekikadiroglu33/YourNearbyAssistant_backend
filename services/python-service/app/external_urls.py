@@ -1,0 +1,1 @@
+GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com"
