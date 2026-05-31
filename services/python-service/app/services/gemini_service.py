@@ -22,21 +22,32 @@ class GeminiService:
         radius_meters, and response_language from the user's natural-language message.
         Falls back to safe defaults if the model returns unparseable JSON."""
 
-        system_prompt = f"""You are a location assistant. The user is at coordinates {user_lat:.5f}, {user_lng:.5f}.
-Extract their search intent and respond ONLY with a JSON object — no markdown, no explanation:
+        system_prompt = f"""You are a smart travel companion helping someone explore their current surroundings on foot.
+The user is standing at coordinates {user_lat:.5f}, {user_lng:.5f}.
+
+Analyse the conversation and extract their search intent. Reply ONLY with a valid JSON object — no markdown, no explanation, no extra text:
 {{
-  "place_type": "<Google Places API type: restaurant|cafe|mosque|park|hospital|pharmacy|supermarket|bank|atm|bakery|bar|night_club|tourist_attraction|museum|school|gas_station>",
-  "keyword": "<specific keyword to refine search, e.g. 'kebap', 'lahmacun', 'döner', or empty string>",
-  "radius_meters": <number 300-5000>,
-  "response_language": "<ISO 639-1 language code the user wrote in>"
+  "place_type": "<single most relevant Google Places type: restaurant|cafe|mosque|church|park|hospital|pharmacy|supermarket|convenience_store|bank|atm|bakery|bar|night_club|tourist_attraction|museum|hotel|lodging|gas_station|parking|transit_station|bus_station|subway_station|school|university|library|gym|spa|clothing_store|shopping_mall|electronics_store>",
+  "keyword": "<specific term to narrow results, e.g. 'sushi', 'vegan', 'breakfast', 'döner', 'Starbucks', or '' for a broad category search>",
+  "radius_meters": <integer between 300 and 5000>,
+  "response_language": "<ISO 639-1 code of the language the user wrote in>"
 }}
 
-Rules:
-- For kebap/döner/lahmacun/baklava etc → place_type: "restaurant", keyword: the food name
-- For broad requests like "restaurants near me" → keyword: ""
-- Larger radius if user says "around here", smaller if "very close" or "walking distance"
-- Default radius: 1000
-- Detect language from user input (en, tr, ar, etc.)"""
+Radius — think in walking minutes (avg ~80 m/min):
+- "right next to me", "closest", "I can walk" → 300–500 m (under 7 min)
+- no qualifier, general intent → 1000 m (~12 min)
+- "nearby", "around here" → 1500 m (~20 min)
+- "in this neighbourhood", "this area" → 2000–3000 m
+- "anywhere in the city", "I don't mind travelling" → 4000–5000 m
+- urgency words ("urgent", "emergency", "I need now") → always 500 m or less
+
+Keyword rules:
+- Specific food or dish (kebap, latte, sushi, taco, baklava) → keyword = that item
+- Brand or venue name (Starbucks, McDonald's, Marriott) → keyword = that name
+- Quality/vibe signal ("cheap eats", "rooftop bar", "cosy café") → keyword = the signal phrase
+- Broad category ("restaurants", "parks", "ATMs") → keyword = ""
+
+Language: detect from the user's own words (en, tr, ar, fr, es, de, etc.)"""
 
         messages = []
         for msg in conversation_history[-6:]:
@@ -80,38 +91,47 @@ Rules:
         instructing the model to respond in the detected language under 120 words."""
 
         if not places:
-            places_context = "No places were found nearby for this search."
+            places_context = "No places were found for this search. The area may have nothing matching, or the radius is too small."
         else:
             places_list = []
-            for i, place in enumerate(places[:5], 1):
-                distance = self._format_distance(place.get("distance_meters", 0))
-                rating_text = ""
-                if place.get("rating"):
-                    rating_text = f", rated {place['rating']}/5"
+            price_symbols = {0: "free", 1: "$", 2: "$$", 3: "$$$", 4: "$$$$"}
+            for i, place in enumerate(places[:7], 1):
+                meters = place.get("distance_meters", 0)
+                walk_min = max(1, round(meters / 80))
+                dist_text = f"{self._format_distance(meters)} · ~{walk_min} min walk"
 
-                open_text = ""
-                if place.get("is_open_now") is not None:
-                    open_text = ", open now" if place["is_open_now"] else ", currently closed"
+                rating = place.get("rating")
+                rating_text = f"rated {rating}/5 ({place.get('user_ratings_total', 0)} reviews)" if rating else "no rating yet"
+
+                is_open = place.get("is_open_now")
+                open_text = "open now" if is_open is True else ("closed" if is_open is False else "hours unknown")
+
+                price = place.get("price_level")
+                price_text = f" · {price_symbols[price]}" if price is not None else ""
 
                 places_list.append(
-                    f"{i}. {place['name']} — {distance} away{rating_text}{open_text}\n"
-                    f"   Address: {place['vicinity']}"
+                    f"{i}. {place['name']} [{dist_text}{price_text}]\n"
+                    f"   {rating_text} · {open_text}\n"
+                    f"   {place['vicinity']}"
                 )
-            places_context = "\n".join(places_list)
+            places_context = "\n\n".join(places_list)
 
         lang = intent.get("response_language", "en")
 
-        system_prompt = f"""You are a friendly local guide assistant. The user is at {user_lat:.4f}, {user_lng:.4f}.
-You have just searched nearby places and found the following results:
+        system_prompt = f"""You are a knowledgeable local travel guide. The user is currently standing at {user_lat:.5f}, {user_lng:.5f} and is looking for somewhere to go right now.
+
+The results below are already sorted by walking distance — closest first:
 
 {places_context}
 
-Respond in {lang} language. Be warm, concise, and helpful.
-- Briefly introduce what you found (1 sentence)
-- Mention the top 2-3 highlights naturally (closest, highest rated, open now)
-- End with a helpful tip or question to refine further
-- Do NOT list all results verbatim — the UI cards already show them
-- Keep response under 120 words"""
+Your job:
+- Respond in {lang} language
+- Open with ONE sentence that captures what you found and how close the best options are
+- Naturally highlight the top 2–3 picks: lead with the closest that is open, then the highest-rated, then any standout detail (price, vibe, specialty)
+- If a place is closed, say so and pivot to the next best open option
+- End with a short practical tip or a follow-up question to refine the search
+- Do NOT recite all results line-by-line — the app cards already show them
+- Keep the response under 100 words; think concise travel-guide copy, not a list"""
 
         messages = []
         for msg in conversation_history[-6:]:

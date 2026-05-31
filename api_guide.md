@@ -20,7 +20,7 @@ All results verified and tested on 2026-05-26.
 5. User refines query  → Smart Search with History
 6. User likes a place  → Save Place
 7. User views saves    → Get Saved Places
-8. User wants AI chat  → Streaming Chat Response
+8. User wants AI chat  → Streaming Chat (HITL: confirm intent → stream response)
 ```
 
 ---
@@ -354,32 +354,128 @@ curl -s http://localhost/api/v1/users/09bb69ac-1e90-4f6d-9668-2972b5fd12b9/saved
 
 ---
 
-## Step 8 — Streaming AI Chat Response
+## Step 8 — Streaming AI Chat Response (Human-in-the-Loop)
 
-For the full conversational experience — Gemini searches places and streams a natural language reply as SSE chunks. Used when the app shows a chat-style interface alongside the map.
+The chat endpoint is **two-step** by design. The backend first extracts what it understood from the user's message and asks the user to confirm before running the search. This ensures the AI acts on what the user actually intended, not just what it guessed.
 
-### 8.1 — First message
+```
+User types message
+        │
+        ▼
+POST /chat/stream  (no confirmed_intent)
+        │
+        ▼
+Backend returns confirmation JSON
+"I'll search for döner restaurants within 500 m (~6 min walk). Does that sound right?"
+        │
+   User reviews
+   ┌────┴────┐
+Confirm      Edit (modify intent fields)
+   └────┬────┘
+        ▼
+POST /chat/stream  (confirmed_intent: { ... })
+        │
+        ▼
+Go service → Google Places API → Gemini stream
+        │
+        ▼
+SSE chunks rendered in chat bubble
+```
+
+---
+
+### 8.1 — Step 1: Extract intent for user confirmation
+
+Omit `confirmed_intent` (or set it to `null`). The backend returns a JSON payload — **not a stream** — with the extracted intent and a human-readable confirmation message.
+
 ```bash
 curl -s -X POST http://localhost:8001/api/v1/chat/stream \
   -H "Content-Type: application/json" \
   -d '{
-    "message": "find me a kebap restaurant nearby",
+    "message": "find me a döner restaurant nearby",
     "user_latitude": 41.0082,
     "user_longitude": 28.9784,
     "conversation_history": []
+  }'
+```
+**Response (JSON — awaiting confirmation):**
+```json
+{
+  "awaiting_confirmation": true,
+  "intent": {
+    "place_type": "restaurant",
+    "keyword": "döner",
+    "radius_meters": 1000,
+    "response_language": "en"
+  },
+  "confirmation_message": "I'll search for \"döner\" restaurant within 1000 m (~13 min walk). Does that sound right?"
+}
+```
+
+> The client detects `awaiting_confirmation: true` and shows the `confirmation_message` to the user with **Confirm** and **Edit** options. The user can adjust `place_type`, `keyword`, or `radius_meters` before approving.
+
+---
+
+### 8.2 — Step 2: User confirms → stream the response
+
+Pass the approved intent (as-is or edited) in `confirmed_intent`. The backend skips extraction, queries the Places API, and streams the Gemini response.
+
+```bash
+curl -s -X POST http://localhost:8001/api/v1/chat/stream \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "find me a döner restaurant nearby",
+    "user_latitude": 41.0082,
+    "user_longitude": 28.9784,
+    "conversation_history": [],
+    "confirmed_intent": {
+      "place_type": "restaurant",
+      "keyword": "döner",
+      "radius_meters": 1000,
+      "response_language": "en"
+    }
   }' --no-buffer
 ```
 **Response (SSE stream):**
 ```
-data: Great news! I've found a few excellent kebab restaurants very close to your location, all open and highly-rated at 4.9/5.
+data: Good news — there are several döner spots within a 13-minute walk, and the closest ones are open right now.
 
-data:  The closest options are Saltanat Grill kebab & fish house and KARADENİZ FİSH KEBAP PİDE HOUSE, both just 264 meters away.
+data:  KARADENİZ FİSH KEBAP PİDE HOUSE is just 264 m away, rated 4.9/5 with nearly 2 000 reviews.
 
-data:  Do any of these sound good, or would you like directions to one in particular?
+data:  Want me to narrow it down to places under 5 minutes away, or filter by price?
 ```
 
-### 8.2 — Follow-up in Turkish (language switches automatically)
+---
+
+### 8.3 — User edits the intent before confirming
+
+The user changes the radius from 1000 m to 500 m before approving:
+
 ```bash
+curl -s -X POST http://localhost:8001/api/v1/chat/stream \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "find me a döner restaurant nearby",
+    "user_latitude": 41.0082,
+    "user_longitude": 28.9784,
+    "conversation_history": [],
+    "confirmed_intent": {
+      "place_type": "restaurant",
+      "keyword": "döner",
+      "radius_meters": 500,
+      "response_language": "en"
+    }
+  }' --no-buffer
+```
+
+---
+
+### 8.4 — Follow-up in Turkish (language switches automatically)
+
+On subsequent turns pass `conversation_history`; the new intent is extracted from the updated context.
+
+```bash
+# Step 1 — extract intent for the follow-up
 curl -s -X POST http://localhost:8001/api/v1/chat/stream \
   -H "Content-Type: application/json" \
   -d '{
@@ -387,21 +483,55 @@ curl -s -X POST http://localhost:8001/api/v1/chat/stream \
     "user_latitude": 41.0082,
     "user_longitude": 28.9784,
     "conversation_history": [
-      {"role": "user",      "content": "find me a kebap restaurant nearby"},
-      {"role": "assistant", "content": "Found several kebap restaurants near you..."}
+      {"role": "user",      "content": "find me a döner restaurant nearby"},
+      {"role": "assistant", "content": "Found several döner restaurants near you..."}
     ]
+  }'
+```
+**Confirmation response:**
+```json
+{
+  "awaiting_confirmation": true,
+  "intent": {
+    "place_type": "cafe",
+    "keyword": "",
+    "radius_meters": 1000,
+    "response_language": "tr"
+  },
+  "confirmation_message": "I'll search for cafe within 1000 m (~13 min walk). Does that sound right?"
+}
+```
+
+```bash
+# Step 2 — user confirms, stream in Turkish
+curl -s -X POST http://localhost:8001/api/v1/chat/stream \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "peki kafe var mı?",
+    "user_latitude": 41.0082,
+    "user_longitude": 28.9784,
+    "conversation_history": [
+      {"role": "user",      "content": "find me a döner restaurant nearby"},
+      {"role": "assistant", "content": "Found several döner restaurants near you..."}
+    ],
+    "confirmed_intent": {
+      "place_type": "cafe",
+      "keyword": "",
+      "radius_meters": 1000,
+      "response_language": "tr"
+    }
   }' --no-buffer
 ```
 **Response (SSE stream in Turkish):**
 ```
-data: Merhaba! Yakınlarda birkaç harika kafe buldum, tam da kahve keyfi yapabileceğiniz yerler.
+data: Harika haber — yakınında şu an açık olan birkaç güzel kafe var!
 
-data:  En yakın ve şu anda açık olanlardan biri, sadece 149 metre mesafedeki 4.9 puanlı Hafız Mustafa.
+data:  En yakını sadece 149 metre uzaktaki 4.9 puanlı Hafız Mustafa.
 
-data:  Nasıl bir kafe arıyordunuz, belki daha sakin bir ortam veya özel bir menüsü olan bir yer mi?
+data:  Daha sakin bir ortam veya belirli bir menü arıyor musun?
 ```
 
-> **Stream internals:** intent extraction → Places API call → Gemini streaming response. Each `data:` chunk is appended to the chat bubble in real time.
+> **Client implementation note:** Check the response for `awaiting_confirmation: true` before treating it as a stream. If present, render the confirmation UI. If absent, pipe the response body as SSE into the chat bubble.
 
 ---
 
@@ -543,7 +673,7 @@ curl -s "http://localhost/api/v1/geocode/reverse?lat=41.0082&lng=28.9784"
 | 6 | POST | `/api/v1/search` | Go + Python | Smart search: query → intent → places | ✅ |
 | 7 | POST | `/api/v1/users/:id/saved-places` | Go | Save a place for a user | ✅ |
 | 8 | GET | `/api/v1/users/:id/saved-places` | Go | Get user's saved places | ✅ |
-| 9 | POST | `/api/v1/chat/stream` | Python | Streaming AI chat response (SSE) | ✅ |
+| 9 | POST | `/api/v1/chat/stream` | Python | HITL chat: step 1 returns confirmation JSON; step 2 (with `confirmed_intent`) streams SSE | ✅ |
 | 10 | POST | `/api/v1/places/nearby` | Go | Direct places search (no AI) | ✅ |
 | 11 | POST | `/api/v1/chat/intent` | Python | AI intent extraction only | ✅ |
 | 12 | GET | `/api/v1/geocode/reverse` | Go | Reverse geocode via query params | ✅ |
