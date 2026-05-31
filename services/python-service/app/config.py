@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Settings:
+    """Application settings loaded from environment variables (or .env via python-dotenv)."""
+
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     GO_SERVICE_URL: str = os.getenv("GO_SERVICE_URL", "http://localhost:8080")

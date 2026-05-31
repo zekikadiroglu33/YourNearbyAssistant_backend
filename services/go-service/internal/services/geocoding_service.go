@@ -15,6 +15,7 @@ type GeocodingService struct {
 	client *http.Client
 }
 
+// NewGeocodingService creates a GeocodingService authenticated with the given Google API key.
 func NewGeocodingService(apiKey string) *GeocodingService {
 	return &GeocodingService{
 		apiKey: apiKey,
@@ -23,6 +24,7 @@ func NewGeocodingService(apiKey string) *GeocodingService {
 }
 
 
+// ReverseGeocode converts GPS coordinates into a human-readable LocationInfo via the Google Geocoding API.
 func (s *GeocodingService) ReverseGeocode(lat, lng float64) (*models.LocationInfo, error) {
 	params := url.Values{}
 	params.Add("latlng", fmt.Sprintf("%f,%f", lat, lng))
@@ -103,6 +105,7 @@ func (s *GeocodingService) ReverseGeocode(lat, lng float64) (*models.LocationInf
 	return info, nil
 }
 
+// contains reports whether val is present in slice.
 func contains(slice []string, val string) bool {
 	for _, s := range slice {
 		if s == val {

@@ -4,6 +4,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// CORS returns a middleware that allows all origins and the standard HTTP methods/headers.
+// OPTIONS preflight requests are terminated early with 204.
 func CORS() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")

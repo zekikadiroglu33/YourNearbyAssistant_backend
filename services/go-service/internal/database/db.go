@@ -7,6 +7,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// Connect opens a PostgreSQL connection using the given DATABASE_URL and verifies it with a ping.
 func Connect(databaseURL string) (*sql.DB, error) {
 	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {
@@ -20,6 +21,7 @@ func Connect(databaseURL string) (*sql.DB, error) {
 	return db, nil
 }
 
+// RunMigrations runs idempotent CREATE TABLE IF NOT EXISTS statements for all required tables.
 func RunMigrations(db *sql.DB) error {
 	migrations := []string{
 		`CREATE TABLE IF NOT EXISTS users (

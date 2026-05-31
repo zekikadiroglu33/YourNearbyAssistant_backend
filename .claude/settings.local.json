@@ -6,7 +6,13 @@
       "Bash(docker compose:*)",
       "Bash(cd /Users/zekikadiroglu/personel-projects/YourNearbyAssistant_backend/services/go-service && go build ./... 2>&1)",
       "Bash(go build:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(docker-compose up *)",
+      "Bash(open -a Docker)",
+      "Bash(docker info *)",
+      "Bash(git -C /Users/zekikadiroglu/personel-projects/YourNearbyAssistant_backend add services/go-service/internal/api/handlers/location.go services/go-service/internal/api/router.go services/go-service/internal/models/location.go services/go-service/internal/services/geocoding_service.go services/go-service/internal/services/places_service.go services/go-service/internal/services/external_urls.go services/python-service/app/external_urls.py api_guide.md)",
+      "Bash(git -C /Users/zekikadiroglu/personel-projects/YourNearbyAssistant_backend commit -m ' *)",
+      "Bash(git *)"
     ]
   }
 }

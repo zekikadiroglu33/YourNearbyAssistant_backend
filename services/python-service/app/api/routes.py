@@ -11,7 +11,7 @@ router = APIRouter()
 
 @router.post("/api/v1/chat/intent")
 async def extract_intent(request: IntentRequest):
-    """Extract search intent from user message."""
+    """Parse a natural-language query into structured search intent (place type, keyword, radius, language)."""
     try:
         intent = await gemini_service.extract_intent(
             user_message=request.user_message,
@@ -26,7 +26,8 @@ async def extract_intent(request: IntentRequest):
 
 @router.post("/api/v1/chat/stream")
 async def stream_chat(request: ChatRequest):
-    """Stream AI chat response with places context."""
+    """Extract intent from the user message, fetch matching nearby places from the Go service,
+    then stream a Gemini-generated conversational response as SSE chunks."""
     try:
         # 1. Extract intent
         intent = await gemini_service.extract_intent(
@@ -76,4 +77,5 @@ async def stream_chat(request: ChatRequest):
 
 @router.get("/health")
 async def health_check():
+    """Return a simple liveness payload confirming the Python AI service is running."""
     return {"status": "healthy", "service": "python-ai"}

@@ -13,6 +13,7 @@ type AIClient struct {
 	client  *http.Client
 }
 
+// NewAIClient creates an AIClient that forwards requests to the Python AI service at baseURL.
 func NewAIClient(baseURL string) *AIClient {
 	return &AIClient{
 		baseURL: baseURL,
@@ -34,6 +35,7 @@ type IntentResponse struct {
 	ResponseLanguage string `json:"response_language"`
 }
 
+// ExtractIntent calls the Python AI service to parse a natural-language query into structured search intent.
 func (c *AIClient) ExtractIntent(req IntentRequest) (*IntentResponse, error) {
 	body, err := json.Marshal(req)
 	if err != nil {

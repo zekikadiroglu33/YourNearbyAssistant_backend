@@ -16,6 +16,7 @@ type PlacesService struct {
 	client *http.Client
 }
 
+// NewPlacesService creates a PlacesService authenticated with the given Google API key.
 func NewPlacesService(apiKey string) *PlacesService {
 	return &PlacesService{
 		apiKey: apiKey,
@@ -23,6 +24,7 @@ func NewPlacesService(apiKey string) *PlacesService {
 	}
 }
 
+// haversineDistance returns the great-circle distance in meters between two lat/lng points.
 func haversineDistance(lat1, lng1, lat2, lng2 float64) int {
 	const earthRadius = 6371000
 
@@ -55,6 +57,7 @@ func priceLevelToInt(s string) *int {
 	return nil
 }
 
+// NearbySearch dispatches to searchText when a keyword is present, otherwise uses searchNearby.
 func (s *PlacesService) NearbySearch(req models.NearbySearchRequest) ([]models.Place, error) {
 	// Use searchText when keyword present, searchNearby otherwise
 	if req.Keyword != nil && *req.Keyword != "" {
@@ -108,6 +111,7 @@ func (s *PlacesService) searchText(req models.NearbySearchRequest) ([]models.Pla
 	return s.doRequest(googlePlacesSearchTextURL, body, req)
 }
 
+// doRequest marshals body, calls the given Google Places API (New) URL, and returns places sorted by distance.
 func (s *PlacesService) doRequest(url string, body map[string]any, req models.NearbySearchRequest) ([]models.Place, error) {
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {

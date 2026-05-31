@@ -9,6 +9,7 @@ type Config struct {
 	Port             string
 }
 
+// New reads service configuration from environment variables, applying defaults where needed.
 func New() *Config {
 	return &Config{
 		DatabaseURL:      os.Getenv("DATABASE_URL"),
@@ -18,6 +19,7 @@ func New() *Config {
 	}
 }
 
+// getEnv returns the value of key from the environment, or defaultValue if unset.
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value

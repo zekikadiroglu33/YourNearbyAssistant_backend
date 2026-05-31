@@ -4,7 +4,10 @@ import json
 
 
 class GeminiService:
+    """Wrapper around the Google Gemini API for intent extraction and streaming chat responses."""
+
     def __init__(self):
+        """Initialise the Gemini client and pin the model from settings."""
         self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
         self.model = settings.GEMINI_MODEL
 
@@ -15,7 +18,9 @@ class GeminiService:
         user_lng: float,
         conversation_history: list
     ) -> dict:
-        """Extract search intent from user message using Gemini."""
+        """Call Gemini with a structured system prompt to extract place_type, keyword,
+        radius_meters, and response_language from the user's natural-language message.
+        Falls back to safe defaults if the model returns unparseable JSON."""
 
         system_prompt = f"""You are a location assistant. The user is at coordinates {user_lat:.5f}, {user_lng:.5f}.
 Extract their search intent and respond ONLY with a JSON object — no markdown, no explanation:
@@ -70,7 +75,9 @@ Rules:
         user_lng: float,
         conversation_history: list
     ):
-        """Generate streaming chat response using Gemini."""
+        """Yield Gemini response text chunks as an async generator.
+        Builds context from the top-5 nearby places and the last 6 conversation turns,
+        instructing the model to respond in the detected language under 120 words."""
 
         if not places:
             places_context = "No places were found nearby for this search."
@@ -121,6 +128,7 @@ Respond in {lang} language. Be warm, concise, and helpful.
                 yield chunk.text
 
     def _format_distance(self, meters: int) -> str:
+        """Return a human-readable distance string (e.g. '350 m' or '1.2 km')."""
         if meters >= 1000:
             return f"{meters / 1000:.1f} km"
         return f"{meters} m"

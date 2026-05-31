@@ -10,6 +10,7 @@ import (
 	"github.com/yourname/location-assistant/go-service/internal/services"
 )
 
+// SetupRouter wires all services, handlers, and middleware into a configured Gin engine.
 func SetupRouter(cfg *config.Config, db *sql.DB) *gin.Engine {
 	router := gin.Default()
 
