@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,23 +17,27 @@ type GeocodingService struct {
 }
 
 // NewGeocodingService creates a GeocodingService authenticated with the given Google API key.
-func NewGeocodingService(apiKey string) *GeocodingService {
+func NewGeocodingService(apiKey string, client *http.Client) *GeocodingService {
 	return &GeocodingService{
 		apiKey: apiKey,
-		client: &http.Client{},
+		client: client,
 	}
 }
 
-
 // ReverseGeocode converts GPS coordinates into a human-readable LocationInfo via the Google Geocoding API.
-func (s *GeocodingService) ReverseGeocode(lat, lng float64) (*models.LocationInfo, error) {
+func (s *GeocodingService) ReverseGeocode(ctx context.Context, lat, lng float64) (*models.LocationInfo, error) {
 	params := url.Values{}
 	params.Add("latlng", fmt.Sprintf("%f,%f", lat, lng))
 	params.Add("key", s.apiKey)
 
 	fullURL := fmt.Sprintf("%s?%s", googleGeocodingURL, params.Encode())
 
-	resp, err := s.client.Get(fullURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create geocoding request: %w", err)
+	}
+
+	resp, err := s.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("geocoding request failed: %w", err)
 	}

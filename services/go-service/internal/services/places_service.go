@@ -2,6 +2,7 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,10 +19,10 @@ type PlacesService struct {
 }
 
 // NewPlacesService creates a PlacesService authenticated with the given Google API key.
-func NewPlacesService(apiKey string) *PlacesService {
+func NewPlacesService(apiKey string, client *http.Client) *PlacesService {
 	return &PlacesService{
 		apiKey: apiKey,
-		client: &http.Client{},
+		client: client,
 	}
 }
 
@@ -92,15 +93,15 @@ func locationInfoFromComponents(lat, lng float64, formattedAddress string, compo
 }
 
 // NearbySearch dispatches to searchText when a keyword is present, otherwise uses searchNearby.
-func (s *PlacesService) NearbySearch(req models.NearbySearchRequest) ([]models.Place, error) {
+func (s *PlacesService) NearbySearch(ctx context.Context, req models.NearbySearchRequest) ([]models.Place, error) {
 	if req.Keyword != nil && *req.Keyword != "" {
-		return s.searchText(req)
+		return s.searchText(ctx, req)
 	}
-	return s.searchNearby(req)
+	return s.searchNearby(ctx, req)
 }
 
 // searchNearby uses Places API (New) — searchNearby endpoint.
-func (s *PlacesService) searchNearby(req models.NearbySearchRequest) ([]models.Place, error) {
+func (s *PlacesService) searchNearby(ctx context.Context, req models.NearbySearchRequest) ([]models.Place, error) {
 	body := map[string]any{
 		"maxResultCount": 20,
 		"locationRestriction": map[string]any{
@@ -117,11 +118,11 @@ func (s *PlacesService) searchNearby(req models.NearbySearchRequest) ([]models.P
 		body["includedTypes"] = []string{*req.Type}
 	}
 
-	return s.doRequest(googlePlacesSearchNearbyURL, body, req)
+	return s.doRequest(ctx, googlePlacesSearchNearbyURL, body, req)
 }
 
 // searchText uses Places API (New) — searchText endpoint for keyword queries.
-func (s *PlacesService) searchText(req models.NearbySearchRequest) ([]models.Place, error) {
+func (s *PlacesService) searchText(ctx context.Context, req models.NearbySearchRequest) ([]models.Place, error) {
 	query := *req.Keyword
 	if req.Type != nil && *req.Type != "" {
 		query = query + " " + *req.Type
@@ -141,19 +142,19 @@ func (s *PlacesService) searchText(req models.NearbySearchRequest) ([]models.Pla
 		},
 	}
 
-	return s.doRequest(googlePlacesSearchTextURL, body, req)
+	return s.doRequest(ctx, googlePlacesSearchTextURL, body, req)
 }
 
 // doRequest marshals body, calls the given Google Places API (New) URL, and returns places sorted by distance.
 // The closest place is enriched with a LocationInfo built from the addressComponents in the same response —
 // no extra geocoding API call is needed.
-func (s *PlacesService) doRequest(url string, body map[string]any, req models.NearbySearchRequest) ([]models.Place, error) {
+func (s *PlacesService) doRequest(ctx context.Context, url string, body map[string]any, req models.NearbySearchRequest) ([]models.Place, error) {
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequest("POST", url, bytes.NewReader(bodyBytes))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

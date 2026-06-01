@@ -1,4 +1,5 @@
 from google import genai
+from google.genai import types
 from app.config import settings
 import json
 
@@ -59,6 +60,9 @@ Language: detect from the user's own words (en, tr, ar, fr, es, de, etc.)"""
         response = await self.client.aio.models.generate_content(
             model=self.model,
             contents=full_prompt,
+            config=types.GenerateContentConfig(
+                thinking_config=types.ThinkingConfig(thinking_budget=0)
+            ),
         )
 
         try:
@@ -143,6 +147,9 @@ Your job:
         async for chunk in await self.client.aio.models.generate_content_stream(
             model=self.model,
             contents=full_prompt,
+            config=types.GenerateContentConfig(
+                thinking_config=types.ThinkingConfig(thinking_budget=0)
+            ),
         ):
             if chunk.text:
                 yield chunk.text

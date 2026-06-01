@@ -2,6 +2,8 @@ package api
 
 import (
 	"database/sql"
+	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yourname/location-assistant/go-service/internal/api/handlers"
@@ -18,9 +20,17 @@ func SetupRouter(cfg *config.Config, db *sql.DB) *gin.Engine {
 	router.Use(middleware.Logger())
 	router.Use(middleware.RateLimit())
 
-	placesService := services.NewPlacesService(cfg.GooglePlacesKey)
-	geocodingService := services.NewGeocodingService(cfg.GooglePlacesKey)
-	aiClient := services.NewAIClient(cfg.PythonServiceURL)
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConns:        100,
+			MaxIdleConnsPerHost: 20,
+			IdleConnTimeout:     90 * time.Second,
+		},
+	}
+
+	placesService := services.NewPlacesService(cfg.GooglePlacesKey, httpClient)
+	geocodingService := services.NewGeocodingService(cfg.GooglePlacesKey, httpClient)
+	aiClient := services.NewAIClient(cfg.PythonServiceURL, httpClient)
 
 	placesHandler := handlers.NewPlacesHandler(placesService, db)
 	healthHandler := handlers.NewHealthHandler(db)

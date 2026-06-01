@@ -40,7 +40,7 @@ func (h *SearchHandler) Search(c *gin.Context) {
 		history = history[len(history)-6:]
 	}
 
-	intent, err := h.aiClient.ExtractIntent(services.IntentRequest{
+	intent, err := h.aiClient.ExtractIntent(c.Request.Context(), services.IntentRequest{
 		UserMessage:         req.Query,
 		UserLatitude:        req.Latitude,
 		UserLongitude:       req.Longitude,
@@ -65,7 +65,7 @@ func (h *SearchHandler) Search(c *gin.Context) {
 	}
 
 	// 3. Search nearby places
-	places, err := h.placesService.NearbySearch(placesReq)
+	places, err := h.placesService.NearbySearch(c.Request.Context(), placesReq)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "places search failed: " + err.Error()})
 		return

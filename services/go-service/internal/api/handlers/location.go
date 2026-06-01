@@ -32,7 +32,7 @@ func (h *LocationHandler) CurrentLocation(c *gin.Context) {
 		return
 	}
 
-	info, err := h.geocodingService.ReverseGeocode(lat, lng)
+	info, err := h.geocodingService.ReverseGeocode(c.Request.Context(), lat, lng)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -55,7 +55,7 @@ func (h *LocationHandler) ReverseGeocode(c *gin.Context) {
 		return
 	}
 
-	info, err := h.geocodingService.ReverseGeocode(lat, lng)
+	info, err := h.geocodingService.ReverseGeocode(c.Request.Context(), lat, lng)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

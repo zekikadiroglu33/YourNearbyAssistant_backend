@@ -36,7 +36,7 @@ func (h *GeocodingHandler) ReverseGeocode(c *gin.Context) {
 		return
 	}
 
-	result, err := h.geocodingService.ReverseGeocode(lat, lng)
+	result, err := h.geocodingService.ReverseGeocode(c.Request.Context(), lat, lng)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -2,6 +2,7 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,10 +15,10 @@ type AIClient struct {
 }
 
 // NewAIClient creates an AIClient that forwards requests to the Python AI service at baseURL.
-func NewAIClient(baseURL string) *AIClient {
+func NewAIClient(baseURL string, client *http.Client) *AIClient {
 	return &AIClient{
 		baseURL: baseURL,
-		client:  &http.Client{},
+		client:  client,
 	}
 }
 
@@ -36,17 +37,22 @@ type IntentResponse struct {
 }
 
 // ExtractIntent calls the Python AI service to parse a natural-language query into structured search intent.
-func (c *AIClient) ExtractIntent(req IntentRequest) (*IntentResponse, error) {
+func (c *AIClient) ExtractIntent(ctx context.Context, req IntentRequest) (*IntentResponse, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	resp, err := c.client.Post(
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		fmt.Sprintf("%s/api/v1/chat/intent", c.baseURL),
-		"application/json",
 		bytes.NewReader(body),
 	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.client.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call AI service: %w", err)
 	}

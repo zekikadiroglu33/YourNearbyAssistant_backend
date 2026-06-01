@@ -8,6 +8,9 @@ from app.config import settings
 
 router = APIRouter()
 
+# Shared client — set by lifespan in main.py; avoids TCP setup on every request.
+http_client: httpx.AsyncClient = None
+
 
 def _build_confirmation_message(intent: dict) -> str:
     """Build a human-readable confirmation string shown to the user before the search runs."""
@@ -72,18 +75,17 @@ async def stream_chat(request: ChatRequest):
         # ── Step 2: user confirmed — run the search and stream ──────────────────
         intent = request.confirmed_intent
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            places_response = await client.post(
-                f"{settings.GO_SERVICE_URL}/api/v1/places/nearby",
-                json={
-                    "latitude": request.user_latitude,
-                    "longitude": request.user_longitude,
-                    "radius": intent.get("radius_meters", 1000),
-                    "type": intent.get("place_type") or None,
-                    "keyword": intent.get("keyword") or None
-                }
-            )
-            places = places_response.json() if places_response.status_code == 200 else []
+        places_response = await http_client.post(
+            f"{settings.GO_SERVICE_URL}/api/v1/places/nearby",
+            json={
+                "latitude": request.user_latitude,
+                "longitude": request.user_longitude,
+                "radius": intent.get("radius_meters", 1000),
+                "type": intent.get("place_type") or None,
+                "keyword": intent.get("keyword") or None
+            }
+        )
+        places = places_response.json() if places_response.status_code == 200 else []
 
         async def generate():
             async for chunk in gemini_service.stream_chat_response(

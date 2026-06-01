@@ -32,7 +32,7 @@ func (h *PlacesHandler) NearbySearch(c *gin.Context) {
 		return
 	}
 
-	places, err := h.placesService.NearbySearch(req)
+	places, err := h.placesService.NearbySearch(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
