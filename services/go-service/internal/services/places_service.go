@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"sort"
 
 	"github.com/yourname/location-assistant/go-service/internal/models"
 )
@@ -57,9 +58,41 @@ func priceLevelToInt(s string) *int {
 	return nil
 }
 
+// locationInfoFromComponents builds a LocationInfo from Places API (New) addressComponents.
+func locationInfoFromComponents(lat, lng float64, formattedAddress string, components []struct {
+	LongText  string   `json:"longText"`
+	ShortText string   `json:"shortText"`
+	Types     []string `json:"types"`
+}) *models.LocationInfo {
+	info := &models.LocationInfo{
+		Latitude:         lat,
+		Longitude:        lng,
+		FormattedAddress: formattedAddress,
+	}
+	for _, c := range components {
+		switch {
+		case contains(c.Types, "neighborhood") || contains(c.Types, "sublocality_level_1"):
+			if info.Neighborhood == "" {
+				info.Neighborhood = c.LongText
+			}
+		case contains(c.Types, "administrative_area_level_2"):
+			info.District = c.LongText
+		case contains(c.Types, "locality"):
+			info.City = c.LongText
+		case contains(c.Types, "administrative_area_level_1") && info.City == "":
+			info.City = c.LongText
+		case contains(c.Types, "country"):
+			info.Country = c.LongText
+			info.CountryCode = c.ShortText
+		case contains(c.Types, "postal_code"):
+			info.PostalCode = c.LongText
+		}
+	}
+	return info
+}
+
 // NearbySearch dispatches to searchText when a keyword is present, otherwise uses searchNearby.
 func (s *PlacesService) NearbySearch(req models.NearbySearchRequest) ([]models.Place, error) {
-	// Use searchText when keyword present, searchNearby otherwise
 	if req.Keyword != nil && *req.Keyword != "" {
 		return s.searchText(req)
 	}
@@ -112,6 +145,8 @@ func (s *PlacesService) searchText(req models.NearbySearchRequest) ([]models.Pla
 }
 
 // doRequest marshals body, calls the given Google Places API (New) URL, and returns places sorted by distance.
+// The closest place is enriched with a LocationInfo built from the addressComponents in the same response —
+// no extra geocoding API call is needed.
 func (s *PlacesService) doRequest(url string, body map[string]any, req models.NearbySearchRequest) ([]models.Place, error) {
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
@@ -125,7 +160,8 @@ func (s *PlacesService) doRequest(url string, body map[string]any, req models.Ne
 
 	fieldMask := "places.id,places.displayName,places.formattedAddress," +
 		"places.rating,places.userRatingCount,places.currentOpeningHours," +
-		"places.location,places.priceLevel,places.types,places.photos"
+		"places.location,places.priceLevel,places.types,places.photos," +
+		"places.addressComponents"
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("X-Goog-Api-Key", s.apiKey)
@@ -152,21 +188,26 @@ func (s *PlacesService) doRequest(url string, body map[string]any, req models.Ne
 			DisplayName struct {
 				Text string `json:"text"`
 			} `json:"displayName"`
-			FormattedAddress      string  `json:"formattedAddress"`
-			Rating                float64 `json:"rating"`
-			UserRatingCount       int     `json:"userRatingCount"`
-			CurrentOpeningHours   *struct {
+			FormattedAddress    string  `json:"formattedAddress"`
+			Rating              float64 `json:"rating"`
+			UserRatingCount     int     `json:"userRatingCount"`
+			CurrentOpeningHours *struct {
 				OpenNow bool `json:"openNow"`
 			} `json:"currentOpeningHours"`
 			Location struct {
 				Latitude  float64 `json:"latitude"`
 				Longitude float64 `json:"longitude"`
 			} `json:"location"`
-			PriceLevel string   `json:"priceLevel"`
-			Types      []string `json:"types"`
-			Photos     []struct {
+			PriceLevel        string   `json:"priceLevel"`
+			Types             []string `json:"types"`
+			Photos            []struct {
 				Name string `json:"name"`
 			} `json:"photos"`
+			AddressComponents []struct {
+				LongText  string   `json:"longText"`
+				ShortText string   `json:"shortText"`
+				Types     []string `json:"types"`
+			} `json:"addressComponents"`
 		} `json:"places"`
 	}
 
@@ -185,6 +226,7 @@ func (s *PlacesService) doRequest(url string, body map[string]any, req models.Ne
 			Longitude:        r.Location.Longitude,
 			PriceLevel:       priceLevelToInt(r.PriceLevel),
 			Types:            r.Types,
+			AddressComponents: r.AddressComponents,
 		}
 
 		if r.Rating > 0 {
@@ -207,13 +249,14 @@ func (s *PlacesService) doRequest(url string, body map[string]any, req models.Ne
 		places = append(places, place)
 	}
 
-	// Sort by distance
-	for i := 0; i < len(places)-1; i++ {
-		for j := i + 1; j < len(places); j++ {
-			if places[i].DistanceMeters > places[j].DistanceMeters {
-				places[i], places[j] = places[j], places[i]
-			}
-		}
+	sort.Slice(places, func(i, j int) bool {
+		return places[i].DistanceMeters < places[j].DistanceMeters
+	})
+
+	if len(places) > 0 {
+		p := &places[0]
+		p.LocationInfo = locationInfoFromComponents(p.Latitude, p.Longitude, p.Vicinity, p.AddressComponents)
+		p.AddressComponents = nil
 	}
 
 	return places, nil

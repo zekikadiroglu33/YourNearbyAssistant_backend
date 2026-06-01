@@ -1,18 +1,25 @@
 package models
 
 type Place struct {
-	ID               string   `json:"id"`
-	Name             string   `json:"name"`
-	Vicinity         string   `json:"vicinity"`
-	Rating           *float64 `json:"rating"`
-	UserRatingsTotal int      `json:"user_ratings_total"`
-	IsOpenNow        *bool    `json:"is_open_now"`
-	DistanceMeters   int      `json:"distance_meters"`
-	Latitude         float64  `json:"latitude"`
-	Longitude        float64  `json:"longitude"`
-	PriceLevel       *int     `json:"price_level"`
-	Types            []string `json:"types"`
-	PhotoReference   *string  `json:"photo_reference"`
+	ID               string        `json:"id"`
+	Name             string        `json:"name"`
+	Vicinity         string        `json:"vicinity"`
+	Rating           *float64      `json:"rating"`
+	UserRatingsTotal int           `json:"user_ratings_total"`
+	IsOpenNow        *bool         `json:"is_open_now"`
+	DistanceMeters   int           `json:"distance_meters"`
+	Latitude         float64       `json:"latitude"`
+	Longitude        float64       `json:"longitude"`
+	PriceLevel       *int          `json:"price_level"`
+	Types            []string      `json:"types"`
+	PhotoReference   *string       `json:"photo_reference"`
+	LocationInfo     *LocationInfo `json:"location_info,omitempty"`
+	// AddressComponents is populated during service processing and cleared before the response is sent.
+	AddressComponents []struct {
+		LongText  string   `json:"longText"`
+		ShortText string   `json:"shortText"`
+		Types     []string `json:"types"`
+	} `json:"-"`
 }
 
 type NearbySearchRequest struct {
